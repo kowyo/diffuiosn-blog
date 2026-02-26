@@ -19,6 +19,7 @@ const posts = defineCollection({
         ),
       ])
       .optional(),
+    repo: z.string().url().optional(),
   }),
 });
 

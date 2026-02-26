@@ -9,6 +9,7 @@ authors:
     link: https://github.com/Kowyo
   - name: Leo
   - name: easymoneysniper
+repo: https://github.com/AaronCaoZJ/julia-diffusion
 ---
 
 # Part 1: Background and Motivation
