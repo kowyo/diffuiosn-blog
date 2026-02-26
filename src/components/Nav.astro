@@ -4,9 +4,6 @@ const currentPath = Astro.url.pathname;
 
 <nav class="nav">
   <a href="/" class="nav-brand">EE5311 Group 7</a>
-  <div class="nav-links">
-    <a href="/rss.xml">RSS</a>
-  </div>
 </nav>
 
 <style>
@@ -14,37 +11,35 @@ const currentPath = Astro.url.pathname;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    padding: var(--space-lg) 0;
+    padding-top: 48px;
+    padding-bottom: var(--space-md);
     margin-bottom: 0;
   }
 
   .nav-brand {
     font-family: var(--font-heading);
     font-size: 1.875rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-weight: 400;
+    line-height: 2rem;
     text-decoration: none;
     color: var(--color-text);
-  }
-
-  .nav-brand:hover {
-    color: var(--color-text-secondary);
   }
 
   .nav-links {
     display: flex;
-    gap: var(--space-lg);
+    gap: var(--space-md);
   }
 
   .nav-links a {
     font-family: var(--font-heading);
-    font-size: 0.8125rem;
-    color: var(--color-text-secondary);
+    font-size: 1rem;
+    color: var(--color-text);
     text-decoration: none;
+    border-bottom: 1px solid var(--color-text);
+    padding-bottom: 2px;
   }
 
-  .nav-links a:hover,
-  .nav-links a.active {
-    color: var(--color-text);
+  .nav-links a:hover {
+    color: var(--color-text-secondary);
   }
 </style>
