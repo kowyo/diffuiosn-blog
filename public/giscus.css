@@ -1,0 +1,43 @@
+main {
+  /* Site specific fonts */
+  --font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-family-monospace: "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+  --color-canvas-default: #fafaf9;
+  --color-canvas-next: #fff;
+  --color-border-default: #e5e5e3;
+  --color-border-muted: #e5e5e3;
+  --color-border-subtle: #e5e5e3;
+  --color-fg-default: #1a1a1a;
+  --color-fg-muted: #555;
+  --color-fg-subtle: #888;
+  --color-accent-fg: #1a1a1a;
+  --color-accent-emphasis: #555;
+  --color-accent-muted: rgba(26, 26, 26, 0.4);
+  --color-accent-subtle: rgba(26, 26, 26, 0.1);
+  --color-success-fg: #22863a;
+  --color-attention-fg: #e36209;
+  --color-attention-muted: rgba(227, 98, 9, 0.4);
+  --color-attention-subtle: rgba(227, 98, 9, 0.1);
+  --color-danger-fg: #d73a49;
+  --color-btn-text: #1a1a1a;
+  --color-btn-bg: #fff;
+  --color-btn-border: #e5e5e3;
+  --color-btn-hover-bg: #f4f4f2;
+  --color-btn-hover-border: #e5e5e3;
+  --color-btn-active-bg: #e5e5e3;
+  --color-btn-primary-text: #fff;
+  --color-btn-primary-bg: #1a1a1a;
+  --color-btn-primary-border: #1a1a1a;
+  --color-btn-primary-hover-bg: #555;
+  --color-btn-primary-hover-border: #555;
+  --color-btn-primary-disabled-text: rgba(255, 255, 255, 0.8);
+  --color-btn-primary-disabled-bg: #888;
+  --color-btn-primary-disabled-border: #888;
+  --color-action-list-item-default-hover-bg: rgba(209, 213, 218, 0.2);
+}
+
+.giscus-frame {
+  border-radius: 8px;
+}

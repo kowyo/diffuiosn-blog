@@ -1,6 +1,7 @@
 ---
 import Layout from "../../components/Layout.astro";
 import Article from "../../components/Article.astro";
+import Comments from "../../components/Comments.astro";
 import { getCollection, render } from "astro:content";
 
 export async function getStaticPaths() {
@@ -51,4 +52,5 @@ const jsonLd = {
   >
     <Content />
   </Article>
+  <Comments />
 </Layout>

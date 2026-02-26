@@ -1,0 +1,29 @@
+---
+const siteUrl = Astro.site?.origin || "https://uinuxblog.getuinux.com";
+const themeUrl = `${siteUrl}/giscus.css`;
+---
+
+<section class="comments">
+  <script src="https://giscus.app/client.js"
+        data-repo="kowyo/diffuiosn-blog"
+        data-repo-id="R_kgDORZNOXA"
+        data-category="General"
+        data-category-id="DIC_kwDORZNOXM4C3PRr"
+        data-mapping="pathname"
+        data-strict="0"
+        data-reactions-enabled="0"
+        data-emit-metadata="0"
+        data-input-position="bottom"
+        data-theme={themeUrl}
+        data-lang="en"
+        data-loading="lazy"
+        crossorigin="anonymous"
+        async>
+  </script>
+</section>
+
+<style>
+  .comments {
+    margin-top: var(--space-2xl);
+  }
+</style>
