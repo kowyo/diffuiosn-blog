@@ -20,9 +20,10 @@ const formattedDate = date.toLocaleDateString("en-US", {
 <article class="article">
   <header class="article-header">
     <Heading as="h1">{title}</Heading>
-    <p class="article-meta">
+    <div class="article-meta">
       <time datetime={date.toISOString()}>{formattedDate}</time>
-    </p>
+      <div class="article-authors">Aaron Cao, Chen Pinghong, Huang Zifeng, Leo, easymoneysniper</div>
+    </div>
   </header>
   <Prose>
     <slot />
@@ -42,6 +43,13 @@ const formattedDate = date.toLocaleDateString("en-US", {
   .article-meta {
     font-family: var(--font-body);
     font-size: 0.875rem;
-    color: var(--color-text-tertiary);
+    color: var(--color-text);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .article-authors {
+    margin-top: 0.125rem;
   }
 </style>
