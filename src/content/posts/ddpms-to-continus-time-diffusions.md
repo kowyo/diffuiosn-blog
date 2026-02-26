@@ -4,11 +4,9 @@ date: 2026-02-26
 authors:
   - name: Aaron Cao
     link: https://sites.google.com/view/caozhijun/home/
-    image: https://lh3.googleusercontent.com/sitesv/APaQ0SR3CN2St-lhG_c7xRBKLDowSqf8EpjHD-tHzZ8rcD1uz87yCAgCrsVkXFNTTADcxON6lR-WjFXIMNXZXw-2jc5xxpWLed7zCiYFUqUXRu3KmUv2PkTJHvmKjL6CjdC6lb2WwZO8h-_DmlrgFRRpW-bd1otVTy69vVVC9Qgo09efBaEzcoiip8tKb9E=w1280
   - name: Chen Pinghong
   - name: Huang Zifeng
     link: https://github.com/Kowyo
-    image: https://github.com/Kowyo.png
   - name: Leo
   - name: easymoneysniper
 ---
