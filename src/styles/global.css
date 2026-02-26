@@ -1,0 +1,73 @@
+/* ============================================
+   UINUX Blog — Global Styles
+   A calm, typography-first design system.
+   ============================================ */
+
+:root {
+  --font-body: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-heading: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
+
+  --color-text: #1a1a1a;
+  --color-text-secondary: #555;
+  --color-text-tertiary: #888;
+  --color-bg: #fafaf9;
+  --color-surface: #fff;
+  --color-border: #e5e5e3;
+  --color-link: #1a1a1a;
+  --color-link-hover: #555;
+  --color-code-bg: #f4f4f2;
+
+  --width-content: 640px;
+  --width-page: 720px;
+
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 5rem;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 18px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  line-height: 1.7;
+}
+
+a {
+  color: var(--color-link);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--color-link-hover);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+::selection {
+  background-color: #d4d4d0;
+}

@@ -1,0 +1,47 @@
+---
+import Heading from "./Heading.astro";
+import Prose from "./Prose.astro";
+
+interface Props {
+  title: string;
+  date: Date;
+  description: string;
+}
+
+const { title, date, description } = Astro.props;
+
+const formattedDate = date.toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+
+<article class="article">
+  <header class="article-header">
+    <Heading as="h1">{title}</Heading>
+    <p class="article-meta">
+      <time datetime={date.toISOString()}>{formattedDate}</time>
+    </p>
+  </header>
+  <Prose>
+    <slot />
+  </Prose>
+</article>
+
+<style>
+  .article {
+    max-width: var(--width-content);
+  }
+
+  .article-header {
+    margin-bottom: var(--space-xl);
+  }
+
+  .article-meta {
+    font-family: var(--font-heading);
+    font-size: 0.8125rem;
+    color: var(--color-text-tertiary);
+    margin-top: var(--space-sm);
+  }
+</style>
