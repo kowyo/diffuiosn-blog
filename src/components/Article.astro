@@ -6,9 +6,10 @@ interface Props {
   title: string;
   date: Date;
   description?: string;
+  authors?: string | { name: string; link?: string; image?: string }[];
 }
 
-const { title, date, description } = Astro.props;
+const { title, date, description, authors } = Astro.props;
 
 const formattedDate = date.toLocaleDateString("en-US", {
   year: "numeric",
@@ -22,7 +23,32 @@ const formattedDate = date.toLocaleDateString("en-US", {
     <Heading as="h1">{title}</Heading>
     <div class="article-meta">
       <time datetime={date.toISOString()}>{formattedDate}</time>
-      <div class="article-authors">Aaron Cao, Chen Pinghong, Huang Zifeng, Leo, easymoneysniper</div>
+      {
+        authors && (
+          <div class="article-authors">
+            {typeof authors === "string" ? (
+              authors
+            ) : (
+              <ul class="author-list">
+                {authors.map((author) => (
+                  <li class="author-item">
+                    {author.image && (
+                      <img src={author.image} alt={author.name} class="author-image" />
+                    )}
+                    {author.link ? (
+                      <a href={author.link} target="_blank" rel="noopener noreferrer" class="author-link">
+                        {author.name}
+                      </a>
+                    ) : (
+                      <span class="author-name">{author.name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )
+      }
     </div>
   </header>
   <Prose>
@@ -51,5 +77,38 @@ const formattedDate = date.toLocaleDateString("en-US", {
 
   .article-authors {
     margin-top: 0.125rem;
+  }
+
+  .author-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .author-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .author-image {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
+  .author-link {
+    color: inherit;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .author-link:hover {
+    text-decoration: underline;
   }
 </style>

@@ -7,6 +7,18 @@ const posts = defineCollection({
     title: z.string(),
     description: z.string().optional(),
     date: z.coerce.date(),
+    authors: z
+      .union([
+        z.string(),
+        z.array(
+          z.object({
+            name: z.string(),
+            link: z.string().url().optional(),
+            image: z.string().url().optional(),
+          })
+        ),
+      ])
+      .optional(),
   }),
 });
 

@@ -42,7 +42,12 @@ const jsonLd = {
 
 <Layout title={`${post.data.title} — EE5311 Group 7`} description={post.data.description} ogType="article">
   <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-  <Article title={post.data.title} date={post.data.date} description={post.data.description}>
+  <Article
+    title={post.data.title}
+    date={post.data.date}
+    description={post.data.description}
+    authors={post.data.authors}
+  >
     <Content />
   </Article>
 </Layout>
