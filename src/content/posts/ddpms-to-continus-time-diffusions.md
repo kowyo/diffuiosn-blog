@@ -202,7 +202,9 @@ We implement a **Brownian Bridged** model. The Brownian Bridge provides an exact
 
 The forward process corrupts data $x_0$ toward noise $x_1$ following the Brownian Bridge law. The noise amplitude $\sigma\sqrt{t(1-t)}$ reaches its maximum at $t=0.5$ and collapses to zero at both endpoints, naturally pinning the endpoints without any boundary condition enforcement :
 
-$$x_t = (1-t)\,x_0 + t\,x_1 + \sigma\sqrt{t(1-t)}\,\varepsilon, \quad \varepsilon \sim \mathcal{N}(0,I)$$
+$$
+x_t = (1-t)\,x_0 + t\,x_1 + \sigma\sqrt{t(1-t)}\,\varepsilon, \quad \varepsilon \sim \mathcal{N}(0,I)
+$$
 
 ```julia
 function bridge_forward(x_data, x_noise, t)
@@ -233,7 +235,9 @@ Here the `model_forward` wraps the network with an external residual: $\hat{x}_0
 
 The reverse sampling uses the **exact conditional distribution** of a Brownian Bridge. Given the current state $x_{t_1}$ and the model's prediction $\hat{x}_0$, the next state at $t_2 < t_1$ is drawn from:
 
-$$x_{t_2} \sim \mathcal{N}\!\left(\frac{t_1-t_2}{t_1}\hat{x}_0 + \frac{t_2}{t_1}x_{t_1},\; \sigma^2\frac{t_2(t_1-t_2)}{t_1}I\right)$$
+$$
+x_{t_2} \sim \mathcal{N}\!\left(\frac{t_1-t_2}{t_1}\hat{x}_0 + \frac{t_2}{t_1}x_{t_1},\; \sigma^2\frac{t_2(t_1-t_2)}{t_1}I\right)
+$$
 
 ```julia
 function bridge_step(x_t, x0_hat, t1, t2)
@@ -257,7 +261,9 @@ We implement **Rectified Flow** (Liu et al., 2022) whose key philosophy: instead
 
 The interpolation path is purely linear—no noise schedule, no $\alpha_t$, no $\beta_t$:
 
-$$x_t = t\,x_\text{noise} + (1-t)\,x_\text{data}$$
+$$
+x_t = t\,x_\text{noise} + (1-t)\,x_\text{data}
+$$
 
 ```julia
 function interp(x_data, x_noise, t)
@@ -270,7 +276,9 @@ end
 
 The target velocity is simply $v^* = x_\text{noise} - x_\text{data}$—a constant for any given pair. The loss is a plain MSE (no ELBO derivation, no score matching) between the network's prediction and this constant:
 
-$$\mathcal{L} = \mathbb{E}\left[\|v_\theta(x_t, t) - (x_\text{noise} - x_\text{data})\|^2\right]$$
+$$
+\mathcal{L} = \mathbb{E}\left[\|v_\theta(x_t, t) - (x_\text{noise} - x_\text{data})\|^2\right]
+$$
 
 ```julia
 loss, grads = Flux.withgradient(model) do m
