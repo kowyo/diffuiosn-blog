@@ -1,7 +1,6 @@
 ---
-title: "On Calm Software"
-description: "Most software demands attention. The best software respects it."
-date: 2026-01-15
+title: "Diffusion models, from DDPMs to continuous time diffusion"
+date: 2026-02-26
 ---
 
 Open most applications and they compete for your attention. Notifications, badges, banners, modals. Every surface is an opportunity to interrupt.

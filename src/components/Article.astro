@@ -5,7 +5,7 @@ import Prose from "./Prose.astro";
 interface Props {
   title: string;
   date: Date;
-  description: string;
+  description?: string;
 }
 
 const { title, date, description } = Astro.props;
