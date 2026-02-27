@@ -36,6 +36,13 @@ const filtered = headings.filter((h) => h.depth > 1 && h.depth < 4);
       top: 6rem;
       left: calc(50% + var(--width-page) / 2 + 2rem);
       width: 220px;
+      max-height: calc(100vh - 8rem);
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .toc-sidebar::-webkit-scrollbar {
+      display: none;
     }
   }
 

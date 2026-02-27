@@ -475,5 +475,5 @@ We used `Claude Code` as an assistant in code implementation. It helps us fix bu
 - **Cao Zhijun (A0318149Y):**  Implemented core code for DDPM, SDE-based, and ODE-based models. Analyzed the performance of different samplers and polished the final blog content.
 - **Chen Pinhong (A0318243J):** Created all project visualizations and diagrams. Wrote the first draft of the model principles section and conducted literature research.
 - **Huang Zifeng (A0329302M):** Developed the blog website from scratch. Participated in mathematical derivations and code implementation discussions.
-- **Rui Shuzhe (A0327037H):** Toke part in writing the introduction and background sections. Organized the reference list and performed final proofreading and editing of the blog.
+- **Rui Shuzhe (A0327037H):** Took part in writing the introduction and background sections. Organized the reference list and performed final proofreading and editing of the blog.
 - **Wang Xiao (A0331694Y):** Implemented exploratory code for conditional diffusion and organized the project’s GitHub repository.

@@ -34,6 +34,26 @@
   --text-h1: 2.25rem;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text: #e8e6e3;
+    --color-text-secondary: #9e9c97;
+    --color-text-tertiary: #6e6c68;
+    --color-bg: #191817;
+    --color-surface: #232220;
+    --color-border: #333230;
+    --color-link: #e8e6e3;
+    --color-link-hover: #9e9c97;
+    --color-code-bg: #252321;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  ::selection {
+    background-color: #3a3835;
+  }
+}
+
 @media (max-width: 640px) {
   :root {
     --text-h3: 1.25rem;
@@ -84,6 +104,29 @@ img {
 
 ::selection {
   background-color: #d4d4d0;
+}
+
+/* ============================================
+   Shiki dual-theme (light / dark) wiring
+   ============================================ */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+
+@media (prefers-color-scheme: dark) {
+  .astro-code,
+  .astro-code span {
+    color: var(--shiki-dark);
+    background-color: var(--shiki-dark-bg);
+    font-style: var(--shiki-dark-font-style);
+    font-weight: var(--shiki-dark-font-weight);
+    text-decoration: var(--shiki-dark-text-decoration);
+  }
 }
 
 /* ============================================

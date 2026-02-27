@@ -97,12 +97,44 @@
   }
 
   .prose :global(pre) {
-    background-color: var(--color-code-bg);
+    position: relative;
     padding: var(--space-lg);
     border-radius: 4px;
     overflow-x: auto;
     margin: 1.5em 0;
     line-height: 1.5;
+  }
+
+  /* copy button injected via script */
+  .prose :global(.copy-code-btn) {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.3rem;
+    line-height: 0;
+    color: var(--color-text-secondary);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, color 0.15s ease;
+    user-select: none;
+  }
+
+  .prose :global(.copy-code-btn svg) {
+    width: 1rem;
+    height: 1rem;
+    display: block;
+  }
+
+  .prose :global(pre:hover .copy-code-btn),
+  .prose :global(.copy-code-btn:focus-visible) {
+    opacity: 1;
+  }
+
+  .prose :global(.copy-code-btn.copied) {
+    color: var(--color-text);
   }
 
   .prose :global(pre code) {
