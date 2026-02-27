@@ -65,6 +65,28 @@ const googleVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION;
       </main>
       <Footer />
     </div>
+    <script>
+      // Eagerly load all lazy images after the page is idle so they are
+      // available when the user prints (beforeprint fires too late for async loads).
+      function eagerLoadAllImages() {
+        document.querySelectorAll<HTMLImageElement>("img[loading='lazy']").forEach((img) => {
+          img.loading = "eager";
+          if (!img.complete || img.naturalWidth === 0) {
+            const src = img.src;
+            img.src = "";
+            img.src = src;
+          }
+        });
+      }
+
+      window.addEventListener("load", () => {
+        if ("requestIdleCallback" in window) {
+          (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(eagerLoadAllImages);
+        } else {
+          setTimeout(eagerLoadAllImages, 200);
+        }
+      });
+    </script>
   </body>
 </html>
 
