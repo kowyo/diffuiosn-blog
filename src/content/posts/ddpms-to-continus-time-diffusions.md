@@ -202,7 +202,6 @@ The figure below shows 3000 generated samples overlaid on the reference cat outl
 ![VP-SDE Results](./assets/sde_cat.png)
 
 > The cat outline function refers to <https://www.geogebra.org/m/pH8wD3rW>: "A Parametric Cat".
->
 
 #### Improved: Brownian Bridge
 
