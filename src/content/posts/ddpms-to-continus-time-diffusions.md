@@ -12,31 +12,49 @@ authors:
 repo: https://github.com/AaronCaoZJ/julia-diffusion
 ---
 
-## Part 1: Background and Motivation
+Recent years have witnessed a profound revolution in generative AI, with synthesized content now approaching reality at an astonishing pace. At the heart of this revolution lies a deceptively simple concept: *Data is gradually "drowned" in noise until it becomes completely random, and a neural network learns to "salvage" the original data by reversing this process.*
 
-### The Reign of Diffusion Models
+While this journey began with discrete Denoising Diffusion Probabilistic Models (DDPMs), it has rapidly shifted toward an elegant, differential equation–centric continuous-time mathematical framework: Score-based SDEs and flow-based ODEs like Rectified Flow, which construct deterministic, straight-line ODE trajectories for vastly faster sampling.
 
-We have officially entered the era where Generative AI synthesizes incredibly high-fidelity images, audio, and physical states. The journey began with discrete Denoising Diffusion Probabilistic Models (DDPMs), but rapidly shifted towards an elegant, continuous-time framework: Score-based SDEs and flow-based models like Rectified Flow, which construct deterministic, straight-line ODE trajectories for vastly faster sampling.
+![figure1](./assets/figure1.gif)
 
-Hugging Face's `diffusers` library is the undisputed gold standard for building, distributing, and running inference on diffusion models. Its elegant Pipeline abstraction wraps U-Nets, DiTs, ControlNets, and schedulers into just a few lines of code, dramatically lowering the barrier to generative AI development.
+### The Expanding Landscape Across Domains
 
-Yet this same abstraction is a double-edged sword. The sampling process is mathematically equivalent to solving an ODE/SDE, but diffusers buries these integration steps beneath layers of object-oriented Schedulers. For researchers and engineers who need fine-grained control over solver parameters, step-level observability, or aggressive inference optimization, the encapsulation becomes a bottleneck—forcing them to spend valuable time navigating Pipeline internals just to reach the underlying numerical mechanics.
+Diffusion models are no longer confined to basic image synthesis; they have evolved into a versatile generative toolkit permeating diverse domains:
+
+- **Visual Generation:** Diffusion Transformers (DiTs) like **FLUX**, **Hunyuan-DiT**, **SD3.5** have set new standards for scalability, while frameworks like **ControlNet**, **T2I-Adapter** enable precise, controllable image and video generation.
+- **Language Modeling:** Pioneering explorations demonstrate promise for non-autoregressive, parallel decoding. Models like **LLaDA2.1** and **STAR-LDM** enable novel "draft-then-edit" capabilities, hinting at a unified multimodal future.
+- **Scientific Discovery:** In structural biology, models like **Mac-Diff** accelerate protein conformational sampling by 3000×, alongside **AlphaFlow** and **DiG**. In medical imaging, scale-cascaded diffusion is pushing the boundaries of MRI reconstruction.
+
+To support this rapidly expanding landscape, Hugging Face's `diffusers` library has become the undisputed gold standard, dramatically lowering the barrier to entry by wrapping U-Nets, DiTs, ControlNets, and schedulers into a few lines of Python code.
+
+However, this elegant abstraction is a double-edged sword. The act of generating is mathematically equivalent to solving a differential equation (ODE or SDE). By burying these integration steps beneath layers of object-oriented code, the library creates a bottleneck for researchers and engineers who need fine-grained control over the math to optimize speed or accuracy.
 
 ### Returning to Mathematical First Principles
 
-If generative modeling is fundamentally about evolving probability distributions via differential equations driven by neural networks, why not build it in an environment where differential equations are first-class citizens? This question led us to Julia. By leveraging Julia's world-leading `SciML`/`DifferentialEquations.jl` ecosystem and elegant deep learning via `Flux.jl`, we can strip away the black box. Our goal is to demonstrate how replacing complex Python scheduling logic with transparent, mathematically pure ODE/SDE solvers yields a codebase that is not only highly modular but essentially reads like math.
+If generative modeling is fundamentally about evolving probability distributions via neural-network-driven differential equations, it makes sense to build these models in an environment where differential equations are first-class citizens. This realization led us to Julia. By leveraging Julia's `SciML`/`DifferentialEquations.jl` ecosystem and `Flux.jl` for deep learning, we can strip away the black box and translate continuous-time math directly into executable code.
 
-## Part 2: Principle Review — From Discrete Steps to Continuous Manifolds
+![figure4](./assets/figure4.png)
+
+In this post, we will demonstrate this by implementing three representative diffusion formulations from scratch:
+
+- **VP-SDE** with Euler–Maruyama sampling.
+- **Brownian Bridge** as a more stable alternative.
+- **Rectified Flow** as an ODE-based straight-line model.
+
+## Fundamentals
 
 Before diving into the code, we must trace the mathematical evolution that underpins modern diffusion models. The progression from discrete DDPM steps to continuous-time SDEs and ODEs is far more than theoretical elegance—it reveals a profound unification. At its core, diffusion models are not merely a bag of tricks for image synthesis; they are a principled framework for learning and manipulating probability distributions.
 
-### The Discrete Origin: DDPM
+### The Discrete Origin: DDPMs
 
-Introduced by Sohl-Dickstein et al. (2015) and brought to prominence by Ho et al. (2020), DDPM defines a forward Markov chain that gradually corrupts data $x_0$ with Gaussian noise over $T$ steps via a variance schedule $\{\beta_t\} $.  A key insight is that the marginal at any timestep admits a tractable closed form via the reparameterization trick:
+Introduced by Sohl-Dickstein et al. (2015) and brought to prominence by Ho et al. (2020), DDPMs defines a forward Markov chain that gradually corrupts data $x_0$ with Gaussian noise over $T$ steps via a variance schedule $\{\beta_t\} $.  A key insight is that the marginal at any timestep admits a tractable closed form via the reparameterization trick:
 $$
 q(x_t|x_0) = \mathcal{N}(x_t;\ \sqrt{\bar{\alpha}_t}\, x_0,\ (1 - \bar{\alpha}_t) I)
 $$
-The reverse process $p_\theta $ inverts this corruption. Although $q(x_{t-1}|x_t) $ is intractable, Ho et al. showed that conditioning on $x_0 $ yields a closed-form Gaussian posterior $q(x_{t-1}|x_t, x_0) $, and that training a neural network $\epsilon_\theta(x_t, t) $ to predict the added noise via a simplified ELBO reduces to:
+*Here, $\bar{\alpha}_t$ is simply a term derived from $\beta_t$ that dictates the balance between the original image and pure noise.*
+
+The goal of the model is to reverse this corruption. We train a neural network $\epsilon_\theta(x_t, t)$ to look at a noisy image $x_t$ and guess the exact noise $\epsilon$ that was added.The training objective is an elegantly simple Mean Squared Error:
 $$
 \mathcal{L} = \mathbb{E}_{t, x_0, \epsilon}\left[\|\epsilon - \epsilon_\theta(x_t, t)\|^2\right]
 $$
@@ -49,42 +67,36 @@ $$
 \mu_\theta(x_t, t) = \frac{1}{\sqrt{\alpha_t}}(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha_t}}}\epsilon_\theta(x_t, t))
 $$
 
-<img>
-
-Despite achieving remarkable sample quality, this iterative denoising over $T \approx 1000$ steps is computationally costly at inference—a bottleneck addressed by DDIM (Song et al., 2020), which reinterprets the reverse process as a deterministic non-Markovian mapping, slashing sampling steps by an order of magnitude without retraining. More fundamentally, the discrete formulation obscures what continuous-time limit these finite steps are approximating—a question whose answer, as we will see, unlocks a far richer mathematical framework.
+Despite achieving high sample quality, iterative denoising over ~1000 steps is computationally expensive at inference. DDIM (Song et al., 2020) alleviates this bottleneck by formulating the reverse process as a deterministic non-Markovian mapping, reducing sampling steps by an order of magnitude without retraining. More importantly, the discrete formulation obscures the underlying continuous-time limit, whose clarification unlocks a much richer mathematical framework.
 
 ### Moving to Continuous Dynamics: Score-Based SDEs
 
-As $N \to \infty $ (i.e., $\Delta t \to 0 $), the discrete Markov chain naturally converges to a continuous-time SDE. Song et al. (2021) recognized that virtually all diffusion model variants—DDPMs, NCNSs, and beyond—can be unified under this single framework by choosing different drift and diffusion coefficients. For the **Variance Preserving (VP-SDE)** case, the forward process is:
+What happens if we shrink the time between those discrete steps closer and closer to zero ($\Delta t \to 0 $)? The clunky Markov chain elegantly transforms into a continuous-time Stochastic Differential Equation (SDE). Song et al. (2021) showed that almost all diffusion models can be unified under this framework. Instead of discrete jumps, the forward noise process becomes a smooth flow described by:
 $$
 dx = -\frac{1}{2}\beta(t)x\,dt + \sqrt{\beta(t)}\,dw
 $$
-where $dw $ denotes standard Brownian motion and $\beta(t) $ is a continuous noise schedule. The perturbation kernel remains Gaussian at all times, with closed-form mean and variance governed by $\alpha(t) $ and $\sigma(t) $.
+*Here, $dt$ represents the flow of time, $dw $ represents standard Brownian motion (the continuous injection of random noise) and $\beta(t)$ is a continuous noise schedule.*
 
 ### Turning Back Time: The Reverse SDE and the Score Function
 
-Building on Anderson (1982), Song et al. showed that for any forward Itô SDE with sufficiently regular coefficients, an exact time-reversal exists. For the VP-SDE, the reverse process (time flowing from $1 \to 0 $) takes the form:
+The true magic of SDEs is that for any forward process, an exact mathematical "rewind" button exists. The reverse process looks like this:
 $$
 dx = \left[-\frac{1}{2}\beta(t)x - \beta(t)\nabla_x \log p_t(x)\right]dt + \sqrt{\beta(t)}\,d\bar{w}
 $$
 
-<img>
+The most critical component here is $\nabla_x \log p_t(x)$—known as the **score function**. Conceptually, you can think of the score function as a compass: it constantly points the noisy data toward regions where real, clean data is more likely to exist. Just like DDPM trained a network to predict noise, we can train a network to act as this compass.
 
-The central quantity is $\nabla_x \log p_t(x)$—the **score function**—which points toward regions of higher data density and fully determines the reverse dynamics. Crucially, it is independent of the unknown normalizing constant of $p_t(x) $, making it learnable. A neural network $s_\theta(x_t, t) $ is trained via **denoising score matching** (Vincent, 2011):
-$$
-\mathcal{L}_{\text{DSM}} = \mathbb{E}_{t, x_0, \epsilon}\left[\lambda(t)\left\|s_\theta(x_t, t) - \nabla_{x_t}\log q(x_t|x_0)\right\|^2\right]
-$$
-Since the perturbation kernel $q(x_t|x_0) $ is Gaussian, the target score has a closed form: $\nabla_{x_t}\log q(x_t|x_0) = -\epsilon/\sigma(t) $, which directly connects back to the noise prediction network of DDPM via $s_\theta(x_t, t) = -\epsilon_\theta(x_t, t)/\sigma(t) $.
+![figure6](./assets/figure6.png)
 
 ### From Randomness to Certainty: Probability Flow ODE
 
-The reverse SDE generates samples via a score-guided drift corrupted by Brownian noise $d\bar{w}$. However, a remarkable result by Song et al. (2021) proved this randomness is strictly optional. For any diffusion SDE, there exists a unique, deterministic Ordinary Differential Equation (ODE) that induces the exact same marginal distributions $p_t(x)$:
+The reverse SDE generates samples via a score-guided drift corrupted by Brownian noise $d\bar{w}$. However, Song et al. (2021) proved this randomness is strictly optional. For any diffusion SDE, there exists a unique, deterministic Ordinary Differential Equation (ODE) that induces the exact same marginal distributions $p_t(x)$:
 $$
 dx = \left[-\frac{1}{2}\beta(t)x - \frac{1}{2}\beta(t)\, s_\theta(x, t)\right] dt
 $$
 By discarding the stochastic term entirely and halving the score coefficient, we obtain the **Probability Flow ODE**. Integrating this ODE backward in time (from noise at $t=1$ to data at $t=0$) yields a clean sample along a remarkably smooth path.
 
-This formulation carries two profound consequences. First, it reframes generation as a pure numerical integration problem, solvable with off-the-shelf ODE solvers using significantly fewer steps than DDPM's 1000-step chain. Second, it establishes a bijective mapping between noise and data, enabling exact likelihood computation and seamless latent manipulation (with DDIM acting as an early discrete approximation).
+This formulation carries two profound consequences. First, it reframes generation as a pure numerical integration problem, solvable with off-the-shelf ODE solvers using significantly fewer steps than DDPMs' 1000-step chain. Second, it establishes a bijective mapping between noise and data, enabling exact likelihood computation and seamless latent manipulation (with DDIM acting as an early discrete approximation).
 
 ### Train a Flow-Based Diffusion: Flow Matching and Rectified Flow
 
@@ -92,15 +104,13 @@ Lipman et al. (2022) and Liu et al. (2022) independently introduced Flow Matchin
 $$
 \mathcal{L}_{\text{Flow}} = \mathbb{E}_{t, x_{\text{data}}, x_{\text{noise}}}\left[\|v_\theta(x_t, t) - (x_{\text{noise}} - x_{\text{data}})\|^2\right]
 $$
-The key insight here is that straight-line trajectories are not just computationally convenient—they are optimal. Linear paths have zero curvature, requiring drastically fewer neural function evaluations (NFEs) to integrate accurately. Rectified Flow further introduced Reflow, an iterative procedure that re-trains the model on its own generated pairs to continuously straighten the trajectories toward a one-step mapping.
+The key insight here is that straight-line trajectories are not just computationally convenient—they are optimal. Linear paths have zero curvature, requiring drastically fewer neural function evaluations (NFEs) to integrate accurately. Rectified Flow further introduced Reflow, an iterative procedure that re-trains the model on its own generated pairs to continuously straighten the trajectories toward a one-step mapping. This philosophy—direct vector field regression on straight paths—has now cemented itself as a training paradigm, powering state-of-the-art models
 
-<img>
-
-This philosophy—direct vector field regression on straight paths—has now cemented itself as a training paradigm, powering state-of-the-art models like Stable Diffusion 3.5 (by Stability AI), Bagel (by ByteDance) and FLUX (by Black Forest Labs).
+![figure7](./assets/figure7.png)
 
 Having established the mathematical foundations, we now turn to their concrete realization in Julia—where each of these differential equations becomes a first-class computational object.
 
-## Part 3: Julia Implementation of Continuous-time Diffusion
+## Julia Implementation
 
 ### SDE-Based Diffusion: from VP-SDE to Brownian Bridge
 
@@ -189,7 +199,7 @@ x     = x .+ drift .+ noise
 
 The figure below shows 3000 generated samples overlaid on the reference cat outline (left) and several particle trajectories from noise to data (right)—the curved, reflect the stochastic paths in the reverse SDE. While the VP-SDE produces correct samples, convergence is slow: the $\beta(t)$ schedule must be tuned carefully, the score magnitude varies over several orders of magnitude across $t \in [0,1]$, and 200 Euler-Maruyama steps are needed for acceptable quality. This motivates the Brownian Bridge reformulation below.
 
-![VP-SDE Results](../../images/sde_cat.png)
+![VP-SDE Results](./assets/sde_cat.png)
 
 > The cat outline function refers to <https://www.geogebra.org/m/pH8wD3rW>: "A Parametric Cat".
 >
@@ -201,7 +211,6 @@ We implement a **Brownian Bridged** model. The Brownian Bridge provides an exact
 **1. Forward Process**
 
 The forward process corrupts data $x_0$ toward noise $x_1$ following the Brownian Bridge law. The noise amplitude $\sigma\sqrt{t(1-t)}$ reaches its maximum at $t=0.5$ and collapses to zero at both endpoints, naturally pinning the endpoints without any boundary condition enforcement :
-
 $$
 x_t = (1-t)\,x_0 + t\,x_1 + \sigma\sqrt{t(1-t)}\,\varepsilon, \quad \varepsilon \sim \mathcal{N}(0,I)
 $$
@@ -251,9 +260,9 @@ end
 
 Compared with the naive VP-SDE in the previous section, the carefully designed Brownian Bridge forward enables the model to learn a denoising trajectory that is more convergent yet does not lose randomness.
 
-![Brownian Bridge Results](../../images/brown_cat.png)
+![Brownian Bridge Results](./assets/brown_cat.png)
 
-### Implement ODE-Based Diffusion with Rectified Flow
+### ODE-Based Diffusion with Rectified Flow
 
 We implement **Rectified Flow** (Liu et al., 2022) whose key philosophy: instead of learning a score function to drive a stochastic reverse SDE, we directly regress a neural network $v_\theta $ onto the **constant target velocity** of each specific straight-line trajectory. The resulting ODE has near-zero curvature, enabling accurate integration with very few steps.
 
@@ -302,7 +311,7 @@ end
 
 Below, we see 3000 samples recovering the cat geometry (left) and 20 trajectories tracing the generative path (right). After 8000 steps of Rectified Flow training, the magic is clear: compared to the erratic SDE trajectories, these paths are almost perfectly straight—the unmistakable hallmark of a rectified velocity field at work.
 
-![Rectified Flow Results](../../images/ode_cat.png)
+![Rectified Flow Results](./assets/ode_cat.png)
 
 ### Discussion on Sampling
 
@@ -331,8 +340,8 @@ One model call per step, $O(h)$ local truncation error.
 Predictor-corrector with two model calls per step; trapezoidal average halves the error at the same step count.
 
 ```julia
-k1 = model_forward(model, x,             t_vec0)   # t_vec0 = 1 - i/n
-k2 = model_forward(model, x .- dt .* k1, t_vec1)   # t_vec1 = 1 - (i+1)/n
+k1 = model_forward(model, x,             t_vec0)
+k2 = model_forward(model, x .- dt .* k1, t_vec1)
 x  = x .- (dt / 2f0) .* (k1 .+ k2)
 ```
 
@@ -353,9 +362,9 @@ sol  = solve(prob, Tsit5(); abstol=abstol, reltol=reltol, save_everystep=false)
 
 Instead of setting a fixed step count, we control Tsit5 using two tolerance parameters:
 
-* `abstol` (Absolute Tolerance): Bounds the absolute local error per step.
+- `abstol` (Absolute Tolerance): Bounds the absolute local error per step.
 
-* `reltol` (Relative Tolerance): Bounds the error relative to the current solution magnitude.
+- `reltol` (Relative Tolerance): Bounds the error relative to the current solution magnitude.
 
 If the estimated error exceeds these tolerances, the solver rejects the step, shrinks the step size ($h$), and tries again. Tighter tolerances force more (and smaller) steps, increasing the NFE, while looser tolerances allow the solver to take massive strides.
 
@@ -390,14 +399,14 @@ The final results are listed as follow:
 
 > **Metrics:**
 >
-> * **CD (Chamfer Distance) ↓** — measures geometric fidelity between the generated point cloud and ground truth. For two sets $A$ and $B$, $\text{CD} = \operatorname{mean}_i(\min_j \|a_i - b_j\|) + \operatorname{mean}_j(\min_i \|a_i - b_j\|)$. It captures both *precision* (how close each generated point is to the nearest real point) and *recall* (how well the real distribution is covered). Lower is better.
-> * **$\text{MMD}^2$ (Maximum Mean Discrepancy) ↓** — measures distributional similarity using an RBF kernel $k(x,y) = \exp\left(-\frac{\|x-y\|^2}{2\sigma^2}\right)$ with $\sigma = 0.5$: $\text{MMD}^2 = \mathbb{E}[k(a,a)] - 2\mathbb{E}[k(a,b)] + \mathbb{E}[k(b,b)]$. It equals $0$ for identical distributions and is sensitive to mode collapse or distributional mismatch. Lower is better.
+> - **CD (Chamfer Distance) ↓** — measures geometric fidelity between the generated point cloud and ground truth. For two sets $A$ and $B$, $\text{CD} = \operatorname{mean}_i(\min_j \|a_i - b_j\|) + \operatorname{mean}_j(\min_i \|a_i - b_j\|)$. It captures both *precision* (how close each generated point is to the nearest real point) and *recall* (how well the real distribution is covered). Lower is better.
+> - **$\text{MMD}^2$ (Maximum Mean Discrepancy) ↓** — measures distributional similarity using an RBF kernel $k(x,y) = \exp\left(-\frac{\|x-y\|^2}{2\sigma^2}\right)$ with $\sigma = 0.5$: $\text{MMD}^2 = \mathbb{E}[k(a,a)] - 2\mathbb{E}[k(a,b)] + \mathbb{E}[k(b,b)]$. It equals $0$ for identical distributions and is sensitive to mode collapse or distributional mismatch. Lower is better.
 
 The data from our Julia-powered ODE solver benchmarks reveals several profound insights for deploying Flow-based models in practice:
 
 **1. Mathematical Order Beats Brute-Force Steps (The Heun Sweet Spot)**
 
-In the severely constrained compute budget (NFE = 20), simply taking more steps is highly inefficient. Euler at 20 steps (CD 0.0664) is decisively beaten by Heun at 10 steps (CD 0.0619). By utilizing a 2nd-order predictor-corrector mechanism, Heun captures the slight remaining curvature of the 1-Rectified Flow trajectory far better than Euler's blind linear approximations. **For practical deployment, Heun with 10–20 steps offers the ultimate performance/cost ratio.**
+When the computational budget is tight, simply taking more steps is highly inefficient. A 2nd-order solver like Heun at just 10 steps easily beats a basic 1st-order Euler solver at 20 steps because it elegantly corrects for slight trajectory curvatures. For practical deployment, Heun with 10–20 steps offers the ultimate performance-to-cost ratio.
 
 **2. The Invisible Ceiling: Model Error vs. Solver Error**
 
@@ -405,20 +414,66 @@ Notice how the Chamfer Distance (CD) stubbornly plateaus around `0.058` - `0.060
 
 **3. The True Value of Adaptive Solvers (`Tsit5`)**
 
-While `Tsit5` might seem like "overkill" for standard image generation due to its higher NFE overhead (minimum ~50 NFE), its true value lies in **observability and ground-truth generation**. In Python, finding the optimal step schedule often involves blind trial and error. In Julia, `Tsit5` mathematically discovers the optimal step distribution for us. It acts as an invaluable "microscope" for researchers to analyze the exact curvature of the learned velocity field and establish a rigorous ground-truth baseline without retraining.
+While adaptive solvers like `Tsit5` are computationally "overkill" for everyday image generation, they are unparalleled research tools. Instead of relying on blind trial and error to guess the best step sizes, it mathematically discovers the exact optimal step distribution for us. It acts as a "microscope," allowing researchers to establish a rigorous, ground-truth baseline of the model's behavior without retraining.
 
-## Part 4: What else can Julia do, and where are its limitations?
+## What Can Julia Do and Where Are Its Limits?
+
+Our journey from implementing VP-SDE to Brownian Bridge and Rectified Flow reveals that modern diffusion is fundamentally about learning vector fields and integrating them accurately. Building this entirely in Julia rather than standard Python frameworks provided unique insights into the models' dynamics, but also exposed clear practical boundaries.
+
+### What Julia Excels At: A Generative Dynamics Sandbox
+
+Julia's true value lies in exposing the differential-equation core of generative modeling, rather than hiding it behind object-oriented pipelines. By unifying the neural network (`Flux.jl`) and the integrator (`DifferentialEquations.jl`), Julia serves as a transparent sandbox:
+
+- **Seamless Formulation Swapping:** It allowed us to directly observe how formulation dictates trajectory stability—from the high-curvature paths of the baseline VP-SDE, to the naturally pinned endpoints of the Brownian Bridge, and finally to the highly efficient, straight-line ODE trajectories of Rectified Flow.
+- **Rigorous Solver Analysis:** Instead of blind trial and error, Julia's `SciML` ecosystem let us easily drop in different numerical methods. This led directly to our key benchmark findings: higher-order methods (like Heun) offer vastly better performance-to-cost ratios than brute-force 1st-order solvers (like Euler) under tight computational budgets. It also helped us identify the "model error bottleneck"—demonstrating that once a robust solver reduces discretization error, throwing heavier numerical integration at the problem yields diminishing returns due to the neural network's own capacity limits.
+
+### Where Its Limits Are: The Production Reality
+
+Despite its mathematical elegance, Julia is not a free lunch and faces significant hurdles for production-oriented Generative AI workflows:
+
+- **Ecosystem and Tooling:** Python's `PyTorch` and `diffusers` ecosystem remains vastly superior for accessing large-scale pretrained foundation models, LoRA tooling, and community-driven pipelines.
+- **Deployment and Latency:** Julia's JIT compilation introduces startup overhead that is less ideal for fast, interactive inference, making Python the more battle-tested choice for enterprise deployment.
+- **Model Persistence and Serialization:** Saving and loading model weights in Julia (e.g., via `BSON.jl` or `JLD2.jl`) is less standardized and often more brittle than Python's robust `state_dict` or `safetensors`. This lack of a unified serialization format makes checkpoint management and cross-platform sharing a recurring pain point.
+
+## Takeaways
+
+Our implementation demonstrates that Julia's `SciML` ecosystem is highly effective for exposing the mathematical core of diffusion models. By framing generation purely as solving differential equations, we can easily swap solvers (e.g., Euler, Heun, Tsit5) and directly evaluate integration dynamics. However, Python currently maximizes ecosystem breadth and deployment convenience.
+
+The most promising next step is **co-design**: optimize training objectives, parameterizations, and samplers jointly rather than in isolation. Concretely, future work could explore:
+
+1. **Solver-aware training:** Train and optimize directly for low-NFE high-order integration.
+2. **Curvature-regularized sampling:** Design an adaptive sampler for one/few-step generation without full retraining cycles by assigning sampling density to different curvatures on the path.
+3. **Integrating Classifier-Free Guidance:** Introduce conditions to the network, enabling output guided by manual conditional input, thus getting closer to modern diffusion applications.
+4. **Cross-framework pipelines** Train and fine-tune models at scale in `PyTorch`, analyze and optimize dynamics in Julia.
+
+## Reference
+
+1. Ho, J., Jain, A., & Abbeel, P. (2020). Denoising Diffusion Probabilistic Models. *NeurIPS*.
+2. Song, Y., Sohl-Dickstein, J., Kingma, D. P., Kumar, A., Ermon, S., & Poole, B. (2021). Score-Based Generative Modeling through Stochastic Differential Equations. *arXiv:2011.13456*.
+3. Liu, X., Gong, C., & Liu, Q. (2022). Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Flow. *arXiv:2209.03003*.
+4. Song, J., Meng, C., & Ermon, S. (2023). Denoising Diffusion Implicit Models.
+5. Black Forest Labs. (2025). FLUX.1: A 12B Parameter Rectified Flow Transformer. *Technical Report*.
+6. Hunyuan Team. (2024). Hunyuan-DiT: A Powerful Multi-Resolution Diffusion Transformer. *Technical Report*.
+7. Stability AI. (2024). Stable Diffusion 3.5: Scaling Diffusion Transformers for High-Fidelity Image Generation. *Technical Report*.
+8. Zhang, L., et al. (2023). Adding Conditional Control to Text-to-Image Diffusion Models. *arXiv:2302.05543*.
+9. Mou, C., et al. (2024). T2I-Adapter: Learning Adapters to Dig out More Controllable Ability for Text-to-Image Diffusion Models. *arXiv:2302.08453*.
+10. Hu, Y., et al. (2025). MHDAUNet: Dual-Path Noise Alignment for Controllable DiT Generation. *CVPR 2025*.
+11. InclusionAI. (2026). LLaDA2.1 Technical Report. *arXiv:2602.08676*.
+12. Lovelace, J., et al. (2026). Stop-Think-AutoRegress: Language Modeling with Latent Diffusion Planning. *arXiv:2602.20528*.
+13. Xiang, Z., et al. (2025). Mac-Diff: Conditional Diffusion for Protein Conformational Ensembles. *Nature Methods* (in press).
+14. Algassim, H., et al. (2024). AlphaFlow: Learning to Sample Protein Conformations. *ICLR 2024*.
+15. Zheng, S., et al. (2024). DiG: Diffusion Model for Protein Conformational Sampling. *NeurIPS 2024*.
+16. Kazerouni, A., et al. (2023). Diffusion Models in Medical Imaging: A Comprehensive Survey. *Medical Image Analysis*.
+17. Kawar, B., et al. (2025). Scale-Cascaded Diffusion Models for MRI Super-Resolution. *IEEE TMI*.
 
 ## Generative AI Usage
 
-We used `Claude Code` as an assistant in code implementation. It helps us fix bugs and optimize some logic, but we will not directly use the entire generated code as our implementation. In writing the Blog, we used `Gemini 3.1 Pro`, which helps us optimize wording and convert $\LaTeX$ formats. Similarly, we will not directly use entire paragraphs generated by Gemini to replace our own thinking and efforts. All content we write or implement has undergone strict review.
+We used `Claude Code` as an assistant in code implementation. It helps us fix bugs and optimize some logic, but we will not directly use the entire generated code as our implementation. In writing the Blog, we used `Gemini 3.1 Pro`, which helps us optimize wording and convert Latex formats. Similarly, we will not directly use entire paragraphs generated by Gemini to replace our own thinking and efforts. All content we write or implement has undergone strict review.
 
 ## Contributions
 
-* Cao Zhijun (A0318149Y): Basic implementation of diffusion models, including DDPM, SDE-Based, and ODE-Based. Exploration of the impact of samplers on the reverse process (benefits and trade-offs), and a first draft of a blog post is written.
-* Huang Zifeng (A0329302M): Implement the blog website from scratch. Join in the discussion of the mathematical principles and code implementation.
-*
-*
-*
-
-## Reference
+- **Cao Zhijun (A0318149Y):**  Implemented core code for DDPM, SDE-based, and ODE-based models. Analyzed the performance of different samplers and polished the final blog content.
+- **Chen Pinhong (A0318243J):** Created all project visualizations and diagrams. Wrote the first draft of the model principles section and conducted literature research.
+- **Huang Zifeng (A0329302M):** Developed the blog website from scratch. Participated in mathematical derivations and code implementation discussions.
+- **Rui Shuzhe (A0327037H):** Toke part in writing the introduction and background sections. Organized the reference list and performed final proofreading and editing of the blog.
+- **Wang Xiao (A0331694Y):** Implemented exploratory code for conditional diffusion and organized the project’s GitHub repository.
