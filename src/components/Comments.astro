@@ -1,11 +1,6 @@
----
-const siteUrl = Astro.site?.origin || "https://diffusion.kowyo.workers.dev";
-const themeUrl = `${siteUrl}/giscus.css`;
----
-
 <section class="comments">
   <script src="https://giscus.app/client.js"
-        data-repo="kowyo/diffuiosn-blog"
+        data-repo="kowyo/diffusion-blog"
         data-repo-id="R_kgDORZNOXA"
         data-category="General"
         data-category-id="DIC_kwDORZNOXM4C3PRr"
@@ -14,7 +9,7 @@ const themeUrl = `${siteUrl}/giscus.css`;
         data-reactions-enabled="0"
         data-emit-metadata="0"
         data-input-position="bottom"
-        data-theme={themeUrl}
+        data-theme="transparent_dark"
         data-lang="en"
         data-loading="lazy"
         crossorigin="anonymous"
