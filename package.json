@@ -1,11 +1,13 @@
 {
   "name": "diffusion-blog",
-  "type": "module",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro build && wrangler dev",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "astro": "astro",
     "deploy": "astro build && wrangler deploy",
     "cf-typegen": "wrangler types"
@@ -21,6 +23,7 @@
     "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "oxfmt": "^0.36.0",
     "wrangler": "^4.69.0"
   }
 }

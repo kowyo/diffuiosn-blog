@@ -15,7 +15,7 @@ const posts = defineCollection({
             name: z.string(),
             link: z.string().url().optional(),
             image: z.string().url().optional(),
-          })
+          }),
         ),
       ])
       .optional(),

@@ -12,7 +12,7 @@ authors:
 repo: https://github.com/AaronCaoZJ/julia-diffusion
 ---
 
-Recent years have witnessed a profound revolution in generative AI, with synthesized content now approaching reality at an astonishing pace. At the heart of this revolution lies a deceptively simple concept: *Data is gradually "drowned" in noise until it becomes completely random, and a neural network learns to "salvage" the original data by reversing this process.*
+Recent years have witnessed a profound revolution in generative AI, with synthesized content now approaching reality at an astonishing pace. At the heart of this revolution lies a deceptively simple concept: _Data is gradually "drowned" in noise until it becomes completely random, and a neural network learns to "salvage" the original data by reversing this process._
 
 While this journey began with discrete Denoising Diffusion Probabilistic Models (DDPMs), it has rapidly shifted toward an elegant, differential equation–centric continuous-time mathematical framework: Score-based SDEs and flow-based ODEs like Rectified Flow, which construct deterministic, straight-line ODE trajectories for vastly faster sampling.
 
@@ -48,17 +48,22 @@ Before diving into the code, we must trace the mathematical evolution that under
 
 ### The Discrete Origin: DDPMs
 
-Introduced by Sohl-Dickstein et al. (2015) and brought to prominence by Ho et al. (2020), DDPMs defines a forward Markov chain that gradually corrupts data $x_0$ with Gaussian noise over $T$ steps via a variance schedule $\{\beta_t\} $.  A key insight is that the marginal at any timestep admits a tractable closed form via the reparameterization trick:
+Introduced by Sohl-Dickstein et al. (2015) and brought to prominence by Ho et al. (2020), DDPMs defines a forward Markov chain that gradually corrupts data $x_0$ with Gaussian noise over $T$ steps via a variance schedule $\{\beta_t\} $. A key insight is that the marginal at any timestep admits a tractable closed form via the reparameterization trick:
+
 $$
 q(x_t|x_0) = \mathcal{N}(x_t;\ \sqrt{\bar{\alpha}_t}\, x_0,\ (1 - \bar{\alpha}_t) I)
 $$
-*Here, $\bar{\alpha}_t$ is simply a term derived from $\beta_t$ that dictates the balance between the original image and pure noise.*
+
+_Here, $\bar{\alpha}_t$ is simply a term derived from $\beta_t$ that dictates the balance between the original image and pure noise._
 
 The goal of the model is to reverse this corruption. We train a neural network $\epsilon_\theta(x_t, t)$ to look at a noisy image $x_t$ and guess the exact noise $\epsilon$ that was added.The training objective is an elegantly simple Mean Squared Error:
+
 $$
 \mathcal{L} = \mathbb{E}_{t, x_0, \epsilon}\left[\|\epsilon - \epsilon_\theta(x_t, t)\|^2\right]
 $$
-At inference, $p_\theta $ recovers $x_{t-1} $ by first estimating $\hat{x}_0 = \frac{1}{\sqrt{\bar{\alpha}_t}}(x_t - \sqrt{1-\bar{\alpha}_t}\,\epsilon_\theta) $, then sampling from the posterior:
+
+At inference, $p*\theta $ recovers $x*{t-1} $ by first estimating $\hat{x}_0 = \frac{1}{\sqrt{\bar{\alpha}\_t}}(x_t - \sqrt{1-\bar{\alpha}\_t}\,\epsilon_\theta) $, then sampling from the posterior:
+
 $$
 p_\theta(x_{t-1}|x_t) = \mathcal{N}(x_{t-1};\ \mu_\theta(x_t, t),\ \tilde{\beta}_t I)
 $$
@@ -72,14 +77,17 @@ Despite achieving high sample quality, iterative denoising over ~1000 steps is c
 ### Moving to Continuous Dynamics: Score-Based SDEs
 
 What happens if we shrink the time between those discrete steps closer and closer to zero ($\Delta t \to 0 $)? The clunky Markov chain elegantly transforms into a continuous-time Stochastic Differential Equation (SDE). Song et al. (2021) showed that almost all diffusion models can be unified under this framework. Instead of discrete jumps, the forward noise process becomes a smooth flow described by:
+
 $$
 dx = -\frac{1}{2}\beta(t)x\,dt + \sqrt{\beta(t)}\,dw
 $$
-*Here, $dt$ represents the flow of time, $dw $ represents standard Brownian motion (the continuous injection of random noise) and $\beta(t)$ is a continuous noise schedule.*
+
+_Here, $dt$ represents the flow of time, $dw $ represents standard Brownian motion (the continuous injection of random noise) and $\beta(t)$ is a continuous noise schedule._
 
 ### Turning Back Time: The Reverse SDE and the Score Function
 
 The true magic of SDEs is that for any forward process, an exact mathematical "rewind" button exists. The reverse process looks like this:
+
 $$
 dx = \left[-\frac{1}{2}\beta(t)x - \beta(t)\nabla_x \log p_t(x)\right]dt + \sqrt{\beta(t)}\,d\bar{w}
 $$
@@ -91,9 +99,11 @@ The most critical component here is $\nabla_x \log p_t(x)$—known as the **scor
 ### From Randomness to Certainty: Probability Flow ODE
 
 The reverse SDE generates samples via a score-guided drift corrupted by Brownian noise $d\bar{w}$. However, Song et al. (2021) proved this randomness is strictly optional. For any diffusion SDE, there exists a unique, deterministic Ordinary Differential Equation (ODE) that induces the exact same marginal distributions $p_t(x)$:
+
 $$
 dx = \left[-\frac{1}{2}\beta(t)x - \frac{1}{2}\beta(t)\, s_\theta(x, t)\right] dt
 $$
+
 By discarding the stochastic term entirely and halving the score coefficient, we obtain the **Probability Flow ODE**. Integrating this ODE backward in time (from noise at $t=1$ to data at $t=0$) yields a clean sample along a remarkably smooth path.
 
 This formulation carries two profound consequences. First, it reframes generation as a pure numerical integration problem, solvable with off-the-shelf ODE solvers using significantly fewer steps than DDPMs' 1000-step chain. Second, it establishes a bijective mapping between noise and data, enabling exact likelihood computation and seamless latent manipulation (with DDIM acting as an early discrete approximation).
@@ -101,9 +111,11 @@ This formulation carries two profound consequences. First, it reframes generatio
 ### Train a Flow-Based Diffusion: Flow Matching and Rectified Flow
 
 Lipman et al. (2022) and Liu et al. (2022) independently introduced Flow Matching and **Rectified Flow**. They proposed directly regressing a neural network $v_\theta $ onto a target vector field connecting noise $x_{\text{noise}}$ to data $x_{\text{data}}$. By defining a simple linear interpolation $x_t = t\,x_{\text{noise}} + (1-t)\,x_{\text{data}}$ (where time $t$ flows from $1$ to $0$, mirroring the reverse-SDE convention), the training objective becomes elegantly straightforward:
+
 $$
 \mathcal{L}_{\text{Flow}} = \mathbb{E}_{t, x_{\text{data}}, x_{\text{noise}}}\left[\|v_\theta(x_t, t) - (x_{\text{noise}} - x_{\text{data}})\|^2\right]
 $$
+
 The key insight here is that straight-line trajectories are not just computationally convenient—they are optimal. Linear paths have zero curvature, requiring drastically fewer neural function evaluations (NFEs) to integrate accurately. Rectified Flow further introduced Reflow, an iterative procedure that re-trains the model on its own generated pairs to continuously straighten the trajectories toward a one-step mapping. This philosophy—direct vector field regression on straight paths—has now cemented itself as a training paradigm, powering state-of-the-art models
 
 ![figure7](./assets/figure7.png)
@@ -210,6 +222,7 @@ We implement a **Brownian Bridged** model. The Brownian Bridge provides an exact
 **1. Forward Process**
 
 The forward process corrupts data $x_0$ toward noise $x_1$ following the Brownian Bridge law. The noise amplitude $\sigma\sqrt{t(1-t)}$ reaches its maximum at $t=0.5$ and collapses to zero at both endpoints, naturally pinning the endpoints without any boundary condition enforcement :
+
 $$
 x_t = (1-t)\,x_0 + t\,x_1 + \sigma\sqrt{t(1-t)}\,\varepsilon, \quad \varepsilon \sim \mathcal{N}(0,I)
 $$
@@ -263,7 +276,7 @@ Compared with the naive VP-SDE in the previous section, the carefully designed B
 
 ### ODE-Based Diffusion with Rectified Flow
 
-We implement **Rectified Flow** (Liu et al., 2022) whose key philosophy: instead of learning a score function to drive a stochastic reverse SDE, we directly regress a neural network $v_\theta $ onto the **constant target velocity** of each specific straight-line trajectory. The resulting ODE has near-zero curvature, enabling accurate integration with very few steps.
+We implement **Rectified Flow** (Liu et al., 2022) whose key philosophy: instead of learning a score function to drive a stochastic reverse SDE, we directly regress a neural network $v\_\theta $ onto the **constant target velocity** of each specific straight-line trajectory. The resulting ODE has near-zero curvature, enabling accurate integration with very few steps.
 
 **1. Forward Process**
 
@@ -369,12 +382,12 @@ If the estimated error exceeds these tolerances, the solver rejects the step, sh
 
 #### Samplers Summary
 
-| Sampler | Steps | NFE | Key property |
-|---------|-------|-----|-------------|
-| **Euler** | $N$ | $N$ | 1st-order, $O(h)$ local error |
-| **Heun** | $N$ | $2N$ | 2nd-order, $O(h^2)$ local error, trapezoidal corrector |
-| **Tsit5 (fixed step)** | $N$ | $\sim 6N$ | 4th-order, fixed step size, higher accuracy per step |
-| **Tsit5 (adaptive)** | auto | tol-dependent | 4th/5th-order, error-controlled; NFE matches compute budget set by tolerance |
+| Sampler                | Steps | NFE           | Key property                                                                 |
+| ---------------------- | ----- | ------------- | ---------------------------------------------------------------------------- |
+| **Euler**              | $N$   | $N$           | 1st-order, $O(h)$ local error                                                |
+| **Heun**               | $N$   | $2N$          | 2nd-order, $O(h^2)$ local error, trapezoidal corrector                       |
+| **Tsit5 (fixed step)** | $N$   | $\sim 6N$     | 4th-order, fixed step size, higher accuracy per step                         |
+| **Tsit5 (adaptive)**   | auto  | tol-dependent | 4th/5th-order, error-controlled; NFE matches compute budget set by tolerance |
 
 #### Experiments and Results
 
@@ -382,23 +395,23 @@ To create a fair comparison against fixed-step solvers, we empirically pair each
 
 The final results are listed as follow:
 
-| Compute Budget | Sampler | NFE | CD ↓ | MMD² ↓ | Note |
-|:---|:---|---:|---:|---:|:---|
-| **Ultra-Low (≤20)** | Euler (10 steps) | **10** | 0.0830 | 0.012648 | Too coarse, high error |
-| | Heun (10 steps) | 20 | **0.0619** | **0.003062** | **Best performance/cost ratio** |
-| | Euler (20 steps) | 20 | 0.0664 | 0.005444 | Beaten by Heun-10 at same NFE |
-| **Medium (40~100)** | Heun (20 steps) | **40** | 0.0607 | 0.004016 | Reaching model capacity |
-| | Tsit5-adaptive | 49 | **0.0594** | **0.002823** | Adaptive (tol = 5×10⁻²) |
-| | Tsit5-fixed | 61 | 0.0609 | 0.003463 | Fixed (10 steps) |
-| | Tsit5-adaptive | 97 | 0.0590 | 0.004770 | Adaptive (tol = 1×10⁻²) |
-| | Euler (100 steps)| 100 | 0.0583 | 0.002840 | |
-| **High (≥100)** | Heun (50 steps) | 100 | 0.0606 | 0.004314 | Diminishing returns |
-| | Tsit5-fixed | 121 | **0.0577** | **0.002795** | Fixed (20 steps) |
-| | Tsit5-adaptive | 289 | 0.0586 | 0.002570 | Adaptive (tol = 1×10⁻³) |
+| Compute Budget      | Sampler           |    NFE |       CD ↓ |       MMD² ↓ | Note                            |
+| :------------------ | :---------------- | -----: | ---------: | -----------: | :------------------------------ |
+| **Ultra-Low (≤20)** | Euler (10 steps)  | **10** |     0.0830 |     0.012648 | Too coarse, high error          |
+|                     | Heun (10 steps)   |     20 | **0.0619** | **0.003062** | **Best performance/cost ratio** |
+|                     | Euler (20 steps)  |     20 |     0.0664 |     0.005444 | Beaten by Heun-10 at same NFE   |
+| **Medium (40~100)** | Heun (20 steps)   | **40** |     0.0607 |     0.004016 | Reaching model capacity         |
+|                     | Tsit5-adaptive    |     49 | **0.0594** | **0.002823** | Adaptive (tol = 5×10⁻²)         |
+|                     | Tsit5-fixed       |     61 |     0.0609 |     0.003463 | Fixed (10 steps)                |
+|                     | Tsit5-adaptive    |     97 |     0.0590 |     0.004770 | Adaptive (tol = 1×10⁻²)         |
+|                     | Euler (100 steps) |    100 |     0.0583 |     0.002840 |                                 |
+| **High (≥100)**     | Heun (50 steps)   |    100 |     0.0606 |     0.004314 | Diminishing returns             |
+|                     | Tsit5-fixed       |    121 | **0.0577** | **0.002795** | Fixed (20 steps)                |
+|                     | Tsit5-adaptive    |    289 |     0.0586 |     0.002570 | Adaptive (tol = 1×10⁻³)         |
 
 > **Metrics:**
 >
-> - **CD (Chamfer Distance) ↓** — measures geometric fidelity between the generated point cloud and ground truth. For two sets $A$ and $B$, $\text{CD} = \operatorname{mean}_i(\min_j \|a_i - b_j\|) + \operatorname{mean}_j(\min_i \|a_i - b_j\|)$. It captures both *precision* (how close each generated point is to the nearest real point) and *recall* (how well the real distribution is covered). Lower is better.
+> - **CD (Chamfer Distance) ↓** — measures geometric fidelity between the generated point cloud and ground truth. For two sets $A$ and $B$, $\text{CD} = \operatorname{mean}_i(\min_j \|a_i - b_j\|) + \operatorname{mean}_j(\min_i \|a_i - b_j\|)$. It captures both _precision_ (how close each generated point is to the nearest real point) and _recall_ (how well the real distribution is covered). Lower is better.
 > - **$\text{MMD}^2$ (Maximum Mean Discrepancy) ↓** — measures distributional similarity using an RBF kernel $k(x,y) = \exp\left(-\frac{\|x-y\|^2}{2\sigma^2}\right)$ with $\sigma = 0.5$: $\text{MMD}^2 = \mathbb{E}[k(a,a)] - 2\mathbb{E}[k(a,b)] + \mathbb{E}[k(b,b)]$. It equals $0$ for identical distributions and is sensitive to mode collapse or distributional mismatch. Lower is better.
 
 The data from our Julia-powered ODE solver benchmarks reveals several profound insights for deploying Flow-based models in practice:
@@ -447,23 +460,23 @@ The most promising next step is **co-design**: optimize training objectives, par
 
 ## Reference
 
-1. Ho, J., Jain, A., & Abbeel, P. (2020). Denoising Diffusion Probabilistic Models. *NeurIPS*.
-2. Song, Y., Sohl-Dickstein, J., Kingma, D. P., Kumar, A., Ermon, S., & Poole, B. (2021). Score-Based Generative Modeling through Stochastic Differential Equations. *arXiv:2011.13456*.
-3. Liu, X., Gong, C., & Liu, Q. (2022). Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Flow. *arXiv:2209.03003*.
+1. Ho, J., Jain, A., & Abbeel, P. (2020). Denoising Diffusion Probabilistic Models. _NeurIPS_.
+2. Song, Y., Sohl-Dickstein, J., Kingma, D. P., Kumar, A., Ermon, S., & Poole, B. (2021). Score-Based Generative Modeling through Stochastic Differential Equations. _arXiv:2011.13456_.
+3. Liu, X., Gong, C., & Liu, Q. (2022). Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Flow. _arXiv:2209.03003_.
 4. Song, J., Meng, C., & Ermon, S. (2023). Denoising Diffusion Implicit Models.
-5. Black Forest Labs. (2025). FLUX.1: A 12B Parameter Rectified Flow Transformer. *Technical Report*.
-6. Hunyuan Team. (2024). Hunyuan-DiT: A Powerful Multi-Resolution Diffusion Transformer. *Technical Report*.
-7. Stability AI. (2024). Stable Diffusion 3.5: Scaling Diffusion Transformers for High-Fidelity Image Generation. *Technical Report*.
-8. Zhang, L., et al. (2023). Adding Conditional Control to Text-to-Image Diffusion Models. *arXiv:2302.05543*.
-9. Mou, C., et al. (2024). T2I-Adapter: Learning Adapters to Dig out More Controllable Ability for Text-to-Image Diffusion Models. *arXiv:2302.08453*.
-10. Hu, Y., et al. (2025). MHDAUNet: Dual-Path Noise Alignment for Controllable DiT Generation. *CVPR 2025*.
-11. InclusionAI. (2026). LLaDA2.1 Technical Report. *arXiv:2602.08676*.
-12. Lovelace, J., et al. (2026). Stop-Think-AutoRegress: Language Modeling with Latent Diffusion Planning. *arXiv:2602.20528*.
-13. Xiang, Z., et al. (2025). Mac-Diff: Conditional Diffusion for Protein Conformational Ensembles. *Nature Methods* (in press).
-14. Algassim, H., et al. (2024). AlphaFlow: Learning to Sample Protein Conformations. *ICLR 2024*.
-15. Zheng, S., et al. (2024). DiG: Diffusion Model for Protein Conformational Sampling. *NeurIPS 2024*.
-16. Kazerouni, A., et al. (2023). Diffusion Models in Medical Imaging: A Comprehensive Survey. *Medical Image Analysis*.
-17. Kawar, B., et al. (2025). Scale-Cascaded Diffusion Models for MRI Super-Resolution. *IEEE TMI*.
+5. Black Forest Labs. (2025). FLUX.1: A 12B Parameter Rectified Flow Transformer. _Technical Report_.
+6. Hunyuan Team. (2024). Hunyuan-DiT: A Powerful Multi-Resolution Diffusion Transformer. _Technical Report_.
+7. Stability AI. (2024). Stable Diffusion 3.5: Scaling Diffusion Transformers for High-Fidelity Image Generation. _Technical Report_.
+8. Zhang, L., et al. (2023). Adding Conditional Control to Text-to-Image Diffusion Models. _arXiv:2302.05543_.
+9. Mou, C., et al. (2024). T2I-Adapter: Learning Adapters to Dig out More Controllable Ability for Text-to-Image Diffusion Models. _arXiv:2302.08453_.
+10. Hu, Y., et al. (2025). MHDAUNet: Dual-Path Noise Alignment for Controllable DiT Generation. _CVPR 2025_.
+11. InclusionAI. (2026). LLaDA2.1 Technical Report. _arXiv:2602.08676_.
+12. Lovelace, J., et al. (2026). Stop-Think-AutoRegress: Language Modeling with Latent Diffusion Planning. _arXiv:2602.20528_.
+13. Xiang, Z., et al. (2025). Mac-Diff: Conditional Diffusion for Protein Conformational Ensembles. _Nature Methods_ (in press).
+14. Algassim, H., et al. (2024). AlphaFlow: Learning to Sample Protein Conformations. _ICLR 2024_.
+15. Zheng, S., et al. (2024). DiG: Diffusion Model for Protein Conformational Sampling. _NeurIPS 2024_.
+16. Kazerouni, A., et al. (2023). Diffusion Models in Medical Imaging: A Comprehensive Survey. _Medical Image Analysis_.
+17. Kawar, B., et al. (2025). Scale-Cascaded Diffusion Models for MRI Super-Resolution. _IEEE TMI_.
 
 ## Generative AI Usage
 
@@ -471,7 +484,7 @@ We used `Claude Code` as an assistant in code implementation. It helps us fix bu
 
 ## Contributions
 
-- **Cao Zhijun (A0318149Y):**  Implemented core code for DDPM, SDE-based, and ODE-based models. Analyzed the performance of different samplers and polished the final blog content.
+- **Cao Zhijun (A0318149Y):** Implemented core code for DDPM, SDE-based, and ODE-based models. Analyzed the performance of different samplers and polished the final blog content.
 - **Chen Pinhong (A0318243J):** Created all project visualizations and diagrams. Wrote the first draft of the model principles section and conducted literature research.
 - **Huang Zifeng (A0329302M):** Developed the blog website from scratch. Participated in mathematical derivations and code implementation discussions.
 - **Rui Shuzhe (A0327037H):** Took part in writing the introduction and background sections. Organized the reference list and performed final proofreading and editing of the blog.
